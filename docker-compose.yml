@@ -7,7 +7,7 @@ services:
     container_name: pph23_converter_app
     restart: unless-stopped
     ports:
-      - "8000:8080" # serversideup exposes 8080 by default
+      - "8005:8080" # serversideup exposes 8080 by default
     environment:
       - APP_ENV=production
       - APP_DEBUG=false
