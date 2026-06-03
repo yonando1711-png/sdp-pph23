@@ -1,5 +1,5 @@
 # Stage 1: Build Node.js Assets (Vite)
-FROM node:20-alpine AS node_builder
+FROM node:20 AS node_builder
 WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
