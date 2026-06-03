@@ -33,14 +33,20 @@ COPY --chown=www-data:www-data . /var/www/html
 # Copy compiled frontend assets from the node_builder stage
 COPY --chown=www-data:www-data --from=node_builder /app/public/build /var/www/html/public/build
 
+# Ensure an empty SQLite database exists so Portainer can mount volumes correctly
+# We do this BEFORE composer install so that Laravel's package:discover doesn't crash
+RUN mkdir -p /var/www/html/database && touch /var/www/html/database/database.sqlite
+
+# Set environment variables for the build phase to prevent artisan commands from crashing
+ENV DB_CONNECTION=sqlite
+ENV DB_DATABASE=/var/www/html/database/database.sqlite
+ENV APP_ENV=production
+
 # Install Composer dependencies (optimized for production)
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
 # Clear existing cache/views/config if any
 RUN php artisan optimize:clear
-
-# Ensure an empty SQLite database exists so Portainer can mount volumes correctly
-RUN mkdir -p /var/www/html/database && touch /var/www/html/database/database.sqlite && chown www-data:www-data /var/www/html/database/database.sqlite
 
 # serversideup web image exposes 8080 by default
 EXPOSE 8080
