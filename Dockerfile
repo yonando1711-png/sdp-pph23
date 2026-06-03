@@ -4,7 +4,7 @@ WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
 # Install Node dependencies
-RUN npm ci
+RUN npm install
 # Copy the rest of the application
 COPY . .
 # Build Vite assets
