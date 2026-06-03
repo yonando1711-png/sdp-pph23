@@ -1,5 +1,6 @@
 # Stage 1: Build Node.js Assets (Vite)
 FROM node:20 AS node_builder
+RUN apt-get update && apt-get install -y php-cli php-mbstring php-xml php-curl php-sqlite3
 WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
