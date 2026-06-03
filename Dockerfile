@@ -1,6 +1,8 @@
 # Stage 1: Build Node.js Assets (Vite)
 FROM node:20 AS node_builder
-RUN apt-get update && apt-get install -y php-cli php-mbstring php-xml php-curl php-sqlite3
+RUN apt-get update && apt-get install -y php-cli php-mbstring php-xml php-curl php-sqlite3 unzip curl \
+    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
 WORKDIR /app
 # Copy package.json and package-lock.json
 COPY package*.json ./
@@ -8,6 +10,8 @@ COPY package*.json ./
 RUN npm install
 # Copy the rest of the application
 COPY . .
+# Install Composer dependencies (ignoring platform reqs) so Laravel can boot during Vite build
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
 # Build Vite assets
 RUN npm run build
 
