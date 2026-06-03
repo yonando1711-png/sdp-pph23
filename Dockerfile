@@ -11,7 +11,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: PHP Application
-FROM serversideup/php:8.3-web
+FROM serversideup/php:8.3-fpm-nginx
 
 # Switch to root to install PHP extensions
 USER root
