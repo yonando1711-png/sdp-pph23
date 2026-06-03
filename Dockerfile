@@ -11,7 +11,7 @@ RUN npm install
 # Copy the rest of the application
 COPY . .
 # Install Composer dependencies (ignoring platform reqs) so Laravel can boot during Vite build
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --ignore-platform-reqs --no-scripts
 # Build Vite assets
 RUN npm run build
 
