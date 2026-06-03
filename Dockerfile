@@ -43,7 +43,7 @@ ENV DB_DATABASE=/var/www/html/database/database.sqlite
 ENV APP_ENV=production
 
 # Install Composer dependencies (optimized for production)
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --no-scripts
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev --no-scripts --ignore-platform-reqs
 
 # serversideup web image exposes 8080 by default
 EXPOSE 8080
