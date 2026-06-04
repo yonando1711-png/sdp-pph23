@@ -14,6 +14,7 @@ services:
       - DB_CONNECTION=sqlite
       - DB_DATABASE=/var/www/html/storage/database.sqlite
       - APP_URL=${APP_URL:-http://localhost}
+      - APP_NAME="${APP_NAME:-Harent PPh23 Converter}"
       # Serversideup initialization variables
       - AUTORUN_LARAVEL_MIGRATION=true
       - AUTORUN_LARAVEL_STORAGE_LINK=true
