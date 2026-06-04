@@ -35,11 +35,11 @@ COPY --chown=www-data:www-data --from=node_builder /app/public/build /var/www/ht
 
 # Ensure an empty SQLite database exists so Portainer can mount volumes correctly
 # We do this BEFORE composer install so that Laravel's package:discover doesn't crash
-RUN mkdir -p /var/www/html/database && touch /var/www/html/database/database.sqlite
+RUN mkdir -p /var/www/html/storage && touch /var/www/html/storage/database.sqlite
 
 # Set environment variables for the build phase to prevent artisan commands from crashing
 ENV DB_CONNECTION=sqlite
-ENV DB_DATABASE=/var/www/html/database/database.sqlite
+ENV DB_DATABASE=/var/www/html/storage/database.sqlite
 ENV APP_ENV=production
 
 # Install Composer dependencies (optimized for production)
