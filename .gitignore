@@ -42,3 +42,9 @@ pph23_february (1).xls
 pph23_february.xls
 test_pipeline.php
 /database/seeders/DatabaseSeeder.php
+
+12_2025.xlsx
+12_2025.xml
+*.xlsx
+*.xml
+project-rules.md
