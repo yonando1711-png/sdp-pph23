@@ -192,9 +192,10 @@ class ExcelImportService
             $finalized[] = $this->finalizeGroup($group, $cleanedRef);
         }
 
-        // Filter: Keep only entries that contain PPh 23 values
+        // Filter: Keep only entries that are BILLS and contain PPh 23 values
         return array_values(array_filter($finalized, function ($g) {
-            return $g['pph23'] > 0 || $g['dpp'] > 0;
+            $isBill = isset($g['number']) && stripos($g['number'], 'BILLS') !== false;
+            return $isBill && ($g['pph23'] > 0 || $g['dpp'] > 0);
         }));
     }
 

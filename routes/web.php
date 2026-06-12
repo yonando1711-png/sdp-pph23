@@ -38,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/api/journal-entries', [App\Http\Controllers\OdooController::class, 'clearEntries']);
     Route::post('/api/process', [App\Http\Controllers\ExcelController::class, 'process']);
     Route::get('/api/export', [App\Http\Controllers\ExcelController::class, 'export']);
+    Route::get('/api/export-cleanup', [App\Http\Controllers\ExcelController::class, 'exportCleanup']);
 });
 
 require __DIR__.'/settings.php';

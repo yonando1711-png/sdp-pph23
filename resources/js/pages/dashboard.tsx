@@ -71,7 +71,7 @@ export default function Dashboard() {
     const [processedSearchQuery, setProcessedSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'correct' | 'incorrect'>('all');
     const [dataSource, setDataSource] = useState<string | null>(null);
-    const [activeView, setActiveView] = useState<'raw' | 'processed'>('raw');
+    const [activeView, setActiveView] = useState<'raw' | 'processed' | 'cleanup'>('raw');
     const [showExportDropdown, setShowExportDropdown] = useState(false);
     const dropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -215,50 +215,23 @@ export default function Dashboard() {
         toast.info(`Generating and exporting jpph23_1 as .${format.toUpperCase()}...`);
     };
 
-    // Export e-Bupot CSV
-    const exportEBupotCSV = () => {
+    // Export cleanup data to xlsx, xls, or csv via backend
+    const handleExportCleanup = (format: 'xlsx' | 'xls' | 'csv') => {
         if (filteredProcessedEntries.length === 0) {
             toast.error('No data available to export.');
             return;
         }
 
-        const headers = [
-            'Nomor Dokumen', 'Tanggal Dokumen (dd/mm/yyyy)', 'Penerima Penghasilan NPWP/NIK',
-            'Nama Penerima Penghasilan', 'Kode Objek Pajak', 'Penghasilan Bruto (DPP)',
-            'Tarif (2%)', 'PPH Dipotong'
-        ];
-        const csvRows = [headers.join(',')];
-
-        filteredProcessedEntries.forEach(item => {
-            let formattedDate = '';
-            if (item.date) {
-                const d = new Date(item.date);
-                if (!isNaN(d.getTime())) {
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const year = d.getFullYear();
-                    formattedDate = `${day}/${month}/${year}`;
-                }
-            }
-
-            const row = [
-                `"${item.number}"`, `"${formattedDate}"`, `"${item.tax_id || ''}"`,
-                `"${item.partner.replace(/"/g, '""')}"`, '"24-104-01"',
-                item.dpp, 2, item.pph23
-            ];
-            csvRows.push(row.join(','));
+        const queryParams = new URLSearchParams({
+            format,
+            search: processedSearchQuery,
+            status: filterStatus
         });
-
-        const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csvRows.join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `e-Bupot_PPh23_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('e-Bupot import CSV exported successfully!');
+        
+        window.location.href = `/api/export-cleanup?${queryParams.toString()}`;
+        toast.info(`Generating and exporting cleanup as .${format.toUpperCase()}...`);
     };
+
 
     return (
         <>
@@ -403,6 +376,25 @@ export default function Dashboard() {
                                             </span>
                                         )}
                                     </button>
+                                    <button
+                                        onClick={() => setActiveView('cleanup')}
+                                        disabled={processedEntries.length === 0}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all ${
+                                            activeView === 'cleanup'
+                                                ? 'bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/20'
+                                                : processedEntries.length === 0
+                                                    ? 'text-neutral-600 cursor-not-allowed'
+                                                    : 'text-neutral-400 hover:text-neutral-200'
+                                        }`}
+                                    >
+                                        <FileSpreadsheet className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                                        Cleanup Data
+                                        {processedEntries.length > 0 && (
+                                            <span className="ml-1.5 bg-fuchsia-500/20 text-fuchsia-400 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                                                {processedEntries.length}
+                                            </span>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
 
@@ -421,7 +413,7 @@ export default function Dashboard() {
                                     </div>
                                 )}
 
-                                {activeView === 'processed' && (
+                                {(activeView === 'processed' || activeView === 'cleanup') && (
                                     <>
                                         <div className="relative">
                                             <input
@@ -463,7 +455,7 @@ export default function Dashboard() {
                                                     <div className="absolute right-0 mt-1.5 w-48 bg-[#0f1524] border border-neutral-800 rounded-lg shadow-xl z-50 py-1 overflow-hidden animate-fade-in">
                                                         <button
                                                             onClick={() => {
-                                                                handleExportBackend('xlsx');
+                                                                activeView === 'cleanup' ? handleExportCleanup('xlsx') : handleExportBackend('xlsx');
                                                                 setShowExportDropdown(false);
                                                             }}
                                                             className="w-full text-left px-4 py-2 text-xs text-neutral-300 hover:bg-indigo-600/10 hover:text-indigo-400 transition-colors flex items-center gap-2"
@@ -473,7 +465,7 @@ export default function Dashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => {
-                                                                handleExportBackend('xls');
+                                                                activeView === 'cleanup' ? handleExportCleanup('xls') : handleExportBackend('xls');
                                                                 setShowExportDropdown(false);
                                                             }}
                                                             className="w-full text-left px-4 py-2 text-xs text-neutral-300 hover:bg-indigo-600/10 hover:text-indigo-400 transition-colors flex items-center gap-2"
@@ -483,7 +475,7 @@ export default function Dashboard() {
                                                         </button>
                                                         <button
                                                             onClick={() => {
-                                                                handleExportBackend('csv');
+                                                                activeView === 'cleanup' ? handleExportCleanup('csv') : handleExportBackend('csv');
                                                                 setShowExportDropdown(false);
                                                             }}
                                                             className="w-full text-left px-4 py-2 text-xs text-neutral-300 hover:bg-indigo-600/10 hover:text-indigo-400 transition-colors flex items-center gap-2"
@@ -494,13 +486,8 @@ export default function Dashboard() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <button
-                                                onClick={exportEBupotCSV}
-                                                className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg px-4 py-1.5 transition-all duration-200 shadow-md cursor-pointer flex items-center gap-1.5"
-                                            >
-                                                <Download className="w-3.5 h-3.5" /> e-Bupot CSV
-                                            </button>
                                         </div>
+
                                     </>
                                 )}
                             </div>
@@ -639,6 +626,66 @@ export default function Dashboard() {
                                         ) : (
                                             <tr>
                                                 <td colSpan={8} className="p-8 text-center text-neutral-500 font-semibold">
+                                                    No transactions match your search/filter parameters.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Cleanup Data Table */}
+                        {activeView === 'cleanup' && processedEntries.length > 0 && (
+                            <div className="overflow-x-auto rounded-xl border border-neutral-800/80 bg-neutral-950/20">
+                                <table className="w-full text-left border-collapse text-[11px]">
+                                    <thead>
+                                        <tr className="bg-neutral-900/60 border-b border-neutral-850 text-neutral-300 font-semibold">
+                                            <th className="py-1.5 px-2">MONTH</th>
+                                            <th className="py-1.5 px-2">KODE SUPPLIER</th>
+                                            <th className="py-1.5 px-2">NAMA SUPPLIER</th>
+                                            <th className="py-1.5 px-2">INVOICE SUPPLIER</th>
+                                            <th className="py-1.5 px-2">tgl inv</th>
+                                            <th className="py-1.5 px-2">16 DIGIT</th>
+                                            <th className="py-1.5 px-2">22 DIGIT</th>
+                                            <th className="py-1.5 px-2">TAX NO</th>
+                                            <th className="py-1.5 px-2 text-right">JASA</th>
+                                            <th className="py-1.5 px-2 text-right">*(Duplicate)*</th>
+                                            <th className="py-1.5 px-2 text-right">PPH 23</th>
+                                            <th className="py-1.5 px-2 text-right">*(Duplicate)*</th>
+                                            <th className="py-1.5 pl-2 pr-4 text-center">No.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-850 text-neutral-400">
+                                        {filteredProcessedEntries.length > 0 ? (
+                                            filteredProcessedEntries.map((item, index) => {
+                                                const formattedDate = item.date ? (() => {
+                                                    const d = new Date(item.date);
+                                                    if (!isNaN(d.getTime())) return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+                                                    return item.date;
+                                                })() : '-';
+
+                                                return (
+                                                    <tr key={index} className="hover:bg-neutral-900/20 transition-all duration-150">
+                                                        <td className="py-1.5 px-2 font-semibold text-neutral-200">{item.number}</td>
+                                                        <td className="py-1.5 px-2 min-w-[150px] break-words text-indigo-400">{item.partner}</td>
+                                                        <td className="py-1.5 px-2 min-w-[150px] break-words text-indigo-400">{item.partner}</td>
+                                                        <td className="py-1.5 px-2 font-medium text-neutral-300">{item.reference}</td>
+                                                        <td className="py-1.5 px-2 text-amber-400">{formattedDate}</td>
+                                                        <td className="py-1.5 px-2 font-mono text-[10px]">{item.partner_ta || '-'}</td>
+                                                        <td className="py-1.5 px-2 font-mono text-[10px]">{item.partner_id ? String(item.partner_id).padEnd(22, '0') : '-'}</td>
+                                                        <td className="py-1.5 px-2">{item.reference}</td>
+                                                        <td className="py-1.5 px-2 text-right text-emerald-400 font-medium">{item.dpp.toLocaleString()}</td>
+                                                        <td className="py-1.5 px-2 text-right text-emerald-400 font-medium">{item.dpp.toLocaleString()}</td>
+                                                        <td className="py-1.5 px-2 text-right text-fuchsia-400 font-medium">{item.pph23.toLocaleString()}</td>
+                                                        <td className="py-1.5 px-2 text-right text-fuchsia-400 font-medium">{item.pph23.toLocaleString()}</td>
+                                                        <td className="py-1.5 pl-2 pr-4 text-center font-bold text-neutral-500">{index + 1}</td>
+                                                    </tr>
+                                                );
+                                            })
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={13} className="p-8 text-center text-neutral-500 font-semibold">
                                                     No transactions match your search/filter parameters.
                                                 </td>
                                             </tr>
