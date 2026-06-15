@@ -572,23 +572,44 @@ class ExcelController extends Controller
             }
         }
 
-        // Sort data specifically for SHEET.1 by KODE SUPPLIER (partner_di)
-        $processedSorted = $processed;
-        usort($processedSorted, function($a, $b) {
-            $ka = $a['partner_di'] ?? '';
-            $kb = $b['partner_di'] ?? '';
-            return strcmp($ka, $kb);
+        // --- Grouping Logic for SHEET.1 ---
+        $grouped = [];
+        foreach ($processed as $item) {
+            $kode = $item['partner_di'] ?? '';
+            if (!isset($grouped[$kode])) {
+                $grouped[$kode] = [];
+            }
+            $grouped[$kode][] = $item;
+        }
+
+        $singleInvoices = [];
+        $multiInvoices = [];
+        foreach ($grouped as $kode => $items) {
+            if (count($items) === 1) {
+                $singleInvoices[] = $items[0];
+            } else {
+                $multiInvoices[$kode] = $items;
+            }
+        }
+
+        // Sort single invoices alphabetically by KODE SUPPLIER
+        usort($singleInvoices, function($a, $b) {
+            return strcmp($a['partner_di'] ?? '', $b['partner_di'] ?? '');
         });
+
+        // Sort multi invoices groups alphabetically by KODE SUPPLIER
+        ksort($multiInvoices);
 
         $rowIndex = 2;
         $counter = 1;
-        foreach ($processedSorted as $item) {
+
+        // Helper to write a row
+        $writeSheet1Row = function($item, $jVal, $lVal, &$rowIndex, $counter, $taxNo = null) use ($sheet2) {
             $number = $item['number'] ?? '';
             $partnerDi = $item['partner_di'] ?? '';
             $reference = $item['reference'] ?? '';
             $partnerTa = $item['partner_ta'] ?? '';
             
-            // Format partner_id
             $partnerId = $item['partner_id'];
             if ($partnerId === null || $partnerId === '' || $partnerId === 0 || $partnerId === '0') {
                 $partnerId = '';
@@ -596,7 +617,6 @@ class ExcelController extends Controller
                 $partnerId = str_pad(trim((string) $partnerId), 22, '0', STR_PAD_RIGHT);
             }
 
-            // Date
             $dateVal = null;
             $rawDateVal = $item['date'];
             if ($rawDateVal !== null && $rawDateVal !== '') {
@@ -615,6 +635,8 @@ class ExcelController extends Controller
             $dasar = (float) $item['dpp'];
             $pph23Val = (float) $item['pph23'];
 
+            $finalTaxNo = $taxNo !== null ? $taxNo : $reference;
+
             $row = [
                 $number,           // A: MONTH
                 $partnerDi,        // B: KODE SUPPLIER
@@ -623,20 +645,22 @@ class ExcelController extends Controller
                 $dateVal,          // E: tgl inv
                 $partnerTa,        // F: 16 DIGIT
                 $partnerId,        // G: 22 DIGIT
-                $reference,        // H: TAX NO
+                $finalTaxNo,       // H: TAX NO
                 $dasar,            // I: JASA
-                $dasar,            // J: (empty header duplicate)
+                $jVal,             // J: (empty header duplicate)
                 $pph23Val,         // K: PPH 23
-                $pph23Val,         // L: (empty header duplicate)
+                $lVal,             // L: (empty header duplicate)
                 $counter           // M: counter
             ];
 
             foreach ($row as $colIndex => $value) {
                 $colString = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex + 1);
                 $isDateCol = ($colIndex === 4); // E
-                $isNumericCol = ($colIndex === 8 || $colIndex === 9 || $colIndex === 10 || $colIndex === 11 || $colIndex === 12); // I, J, K, L, M
+                $isNumericCol = ($colIndex === 8 || $colIndex === 9 || $colIndex === 10 || $colIndex === 11 || $colIndex === 12);
                 
-                if ($isDateCol) {
+                if ($value === '') {
+                    $sheet2->setCellValueExplicit($colString . $rowIndex, '', \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                } elseif ($isDateCol) {
                     if (is_numeric($value)) {
                         $sheet2->setCellValue($colString . $rowIndex, (float)$value);
                     } else {
@@ -648,13 +672,66 @@ class ExcelController extends Controller
                     $sheet2->setCellValueExplicit($colString . $rowIndex, (string)$value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 }
 
-                // Highlight cell in yellow if it is exactly 0 or blank
                 if ($value === 0 || $value === 0.0 || $value === '0' || $value === '') {
                     $sheet2->getStyle($colString . $rowIndex)->getFill()
                         ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
                         ->getStartColor()->setARGB('FFFFFF00');
                 }
             }
+            $rowIndex++;
+        };
+
+        // --- Block 1: Single Invoices ---
+        foreach ($singleInvoices as $item) {
+            $writeSheet1Row($item, (float)$item['dpp'], (float)$item['pph23'], $rowIndex, $counter);
+            $counter++;
+        }
+
+        // Space between blocks
+        if (count($singleInvoices) > 0 && count($multiInvoices) > 0) {
+            $sheet2->getStyle('A' . $rowIndex . ':M' . $rowIndex)
+                ->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
+                ->getStartColor()->setARGB('FFB0C4DE');
+            $rowIndex++;
+        }
+
+        // --- Block 2: Multi Invoices ---
+        foreach ($multiInvoices as $kode => $items) {
+            $groupCount = count($items);
+            $sumDpp = 0;
+            $sumPph23 = 0;
+
+            // Collect all invoice numbers (references)
+            $allRefs = [];
+            foreach ($items as $item) {
+                if (!empty($item['reference'])) {
+                    $allRefs[] = trim($item['reference']);
+                }
+            }
+            // Unique them just in case of accidental duplicates, though unlikely
+            $allRefs = array_unique($allRefs);
+            $mashedRefs = implode(', ', $allRefs);
+
+            foreach ($items as $index => $item) {
+                $sumDpp += (float) $item['dpp'];
+                $sumPph23 += (float) $item['pph23'];
+                
+                $isLast = ($index === $groupCount - 1);
+                
+                $jVal = $isLast ? $sumDpp : '';
+                $lVal = $isLast ? $sumPph23 : '';
+                
+                $taxNo = '';
+                if ($isLast) {
+                    $taxNo = $mashedRefs;
+                }
+                
+                $writeSheet1Row($item, $jVal, $lVal, $rowIndex, $counter, $taxNo);
+            }
+            
+            // Blank row after group
+            $sheet2->getStyle('J' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFFF00');
+            $sheet2->getStyle('L' . $rowIndex)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFFF00');
             $rowIndex++;
             $counter++;
         }
